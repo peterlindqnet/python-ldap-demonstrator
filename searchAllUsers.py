@@ -1,4 +1,4 @@
-import ldap
+from ldap3 import Server, Connection, ALL
 import pprint
 
 ## Python replacement for SDI for verifying and manipulating LDAP and user data
@@ -14,45 +14,38 @@ basepoint = '<basepoint>'
 # Not that much error handling yet, a connection fail will end all or skip entry
 
 # Connect to server
-ldap_search = ldap.initialize(ldap_host)
-
-# Add options here (this only turns of referrals, used by Active Directory)
-ldap_search.set_option(ldap.OPT_REFERRALS, 0)
-
-# Do Bind - add error handling here
-ldap_search.simple_bind_s(bind_user, bind_pwd)
-
-# Do search
-result = ldap_search.search_s(basepoint, ldap.SCOPE_SUBTREE, 'objectclass=person')
-
-# Check how many results
-print("Found",  len(result), "entries")
-
-
-# Setup pretty print
-pp = pprint.PrettyPrinter(indent=2)
+server = Server(ldap_host, get_info=ALL)
+conn = Connection(server, bind_user , bind_pwd, auto_bind=True)
 
 
 
-# This is the main loop
+# Non paged search
 
-for entry in result:
-
-    # Pretty print can be used to output objects
-    #pp.pprint(entry[1].get('cn').decode())
-
-    # Seems LDAP objects will be outputted as a list.
-    # The list item is a tuple with two values, first entry is the DN, the second a dictionary of all attributes
-    # Multivalued attributes will always be in an array
-    # All attribute values will be as byte arrays, the caller will need to decode
-
-    try: 
-        print("Hello " +entry[1].get('cn')[0].decode() + ", your email seems to be " + entry[1].get('mail')[0].decode())
-    except:
-        print("Seems one of the attributes did not exist and calling decode on it caused an error")
-
-    # Add any additional actions, transformation of data here
+conn.search( basepoint, '(objectClass=*)', attributes= ['cn', 'givenName', 'mail'], paged_size= 2 )
+for entry in conn.entries:
+    print(entry.entry_to_ldif())
 
 
 
-# Any wrap up code here
+
+
+
+# Doing a paged search seems to require a additional manual handling to handle paged_cookie and doing subsequent searches
+
+searchParameters = { 'search_base': basepoint, 'search_filter': '(objectClass=*)', 'attributes': ['cn', 'givenName', 'mail', 'objectclass'], 'paged_size': 5 }
+
+
+while True:
+
+    # Do search
+    conn.search(**searchParameters)
+    for entry in conn.entries:
+        print(entry.entry_to_ldif())
+    cookie = conn.result['controls']['1.2.840.113556.1.4.319']['value']['cookie']
+    if cookie:
+        searchParameters['paged_cookie'] = cookie
+    else:
+        break
+
+
+

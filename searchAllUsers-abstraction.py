@@ -3,6 +3,8 @@ import pprint
 
 ## Python replacement for SDI for verifying and manipulating LDAP and user data
 
+# Abstraction https://ldap3.readthedocs.io/en/latest/abstraction.html
+
 
 ## Iterator
 
@@ -12,6 +14,7 @@ bind_pwd = '<bind_pwd>'
 basepoint = '<basepoint>'
 
 # Not that much error handling yet, a connection fail will end all or skip entry
+# Error / Exception handling may need looking into
 
 # Connect to server
 server = Server(ldap_host, get_info=ALL)
@@ -33,9 +36,8 @@ with Connection(server, bind_user , bind_pwd, auto_bind=True) as conn:
     # Do the paged search
     entries = r.search_paged(paged_size=2)
 
-    # Do the paged search
+    # Do the search (without pages)
     #entries = r.search()
-
 
     print(r)
 
